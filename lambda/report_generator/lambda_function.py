@@ -20,8 +20,8 @@ def lambda_handler(event, context):
     logger.info("Report Generator Lambda started", extra={"event": event})
     
     try:
-        # Extract S3 information from the event
-        bucket_name = event.get('bucket_name')
+        # Extract S3 information from the event or environment
+        bucket_name = event.get('bucket_name') or os.environ.get('S3_BUCKET_NAME')
         data_key = event.get('s3_key')
         
         if not bucket_name or not data_key:

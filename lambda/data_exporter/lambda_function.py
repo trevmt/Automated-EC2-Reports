@@ -1,4 +1,5 @@
 import json
+import os
 import boto3
 from datetime import datetime, timedelta
 from aws_lambda_powertools import Logger
@@ -352,10 +353,10 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
             "successful_fetches": len([m for m in all_metrics_data if 'error' not in m])
         })
         
-        # Extract bucket name from event (EventBridge or direct invocation)
-        # bucket_name = event.get('bucket_name', event.get('bucket', 'demo-cloudwatch-reports'))
-        # S3 Bucket hardcoded for demo
-        bucket_name = 'cloudwatch-reports-730335285545'
+        # Extract bucket name from environment variable, event, or use default
+        bucket_name = os.environ.get('S3_BUCKET_NAME', 
+                                    event.get('bucket_name', 
+                                             event.get('bucket', 'demo-cloudwatch-reports1313621234')))
 
         # Store data in S3
         s3_key = store_in_s3(all_metrics_data, bucket_name)
