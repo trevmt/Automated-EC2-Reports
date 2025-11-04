@@ -1,0 +1,5 @@
+{
+  "bucket_name": "cloudwatch-reports-730335285545",
+  "s3_key": "data/2025-10/metrics.json",
+  "source": "data_exporter"
+}

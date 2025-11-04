@@ -1,0 +1,4 @@
+{
+    "statusCode": 200,
+    "body": "{\"message\": \"Data export and report generation initiated successfully\", \"request_id\": \"91029ad5-99cf-4787-b356-e10544f908b9\", \"s3_key\": \"data/2025-10/metrics.json\", \"bucket_name\": \"cloudwatch-reports-730335285545\", \"instances_processed\": 3, \"report_generator_invocation\": {\"invocation_status\": \"success\", \"status_code\": 202}}"
+}

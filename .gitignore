@@ -1,0 +1,8 @@
+# Kiro IDE files
+.kiro/
+
+# SAM build artifacts
+.aws-sam/
+
+# SAM configuration (environment-specific)
+samconfig.toml

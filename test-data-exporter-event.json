@@ -1,0 +1,6 @@
+{
+  "source": "manual-test",
+  "schedule": "demo",
+  "bucket_name": "cloudwatch-reports-730335285545",
+  "test": true
+}

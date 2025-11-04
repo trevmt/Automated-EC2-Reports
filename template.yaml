@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CloudWatch S3 Reporting - SAM template for automated CloudWatch
+  metrics export to S3 and HTML report generation
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Name for the S3 bucket that will store CloudWatch metrics data and
+      generated reports
+    Default: sam-cloudwatch-reports
+    AllowedPattern: ^[a-z0-9][a-z0-9-]*[a-z0-9]$
+    ConstraintDescription: Bucket name must be lowercase, contain only letters,
+      numbers, and hyphens, and be between 3-63 characters
+    MinLength: 3
+    MaxLength: 63
+
+  NotificationEmail:
+    Type: String
+    Description: Email address to receive notifications about the reporting process status
+    AllowedPattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+    ConstraintDescription: Must be a valid email address
+
+  ScheduleMode:
+    Type: String
+    Description: Schedule mode for the data export process
+    Default: demo
+    AllowedValues:
+      - demo
+      - production
+    ConstraintDescription: Must be either demo (every 5 minutes) or production (monthly on 1st day)
+
+Conditions:
+  IsDemoMode: !Equals
+    - !Ref ScheduleMode
+    - demo
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 300
+    MemorySize: 512
+    Environment:
+      Variables:
+        SNS_TOPIC_ARN: !Ref NotificationsTopic
+
+Resources:
+  # S3 Bucket for storing CloudWatch metrics data and generated reports
+  CloudWatchReportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToIA
+            Status: Enabled
+            Prefix: data/
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+          - Id: CleanupTempFiles
+            Status: Enabled
+            Prefix: temp/
+            ExpirationInDays: 1
+
+  # SNS Topic for Notifications
+  NotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${AWS::StackName}-notifications
+      DisplayName: CloudWatch S3 Reporting Notifications
+      KmsMasterKeyId: alias/aws/sns
+
+  # SNS Email Subscription
+  NotificationsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotificationsTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+  # Data Exporter Lambda Function
+  DataExporterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-DataExporter
+      CodeUri: lambda/data_exporter/
+      Handler: lambda_function.lambda_handler
+      MemorySize: 512
+      Timeout: 300
+      Layers:
+        - arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV2:68
+      Policies:
+        - CloudWatchReadOnlyAccess
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - ec2:DescribeInstances
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+              Resource: !Sub '${CloudWatchReportsBucket.Arn}/data/*'
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !GetAtt ReportGeneratorFunction.Arn
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref NotificationsTopic
+      Events:
+        MonthlySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !If
+              - IsDemoMode
+              - rate(5 minutes)
+              - cron(0 0 1 * ? *)
+            Input: !Sub |
+              {
+                "source": "eventbridge",
+                "schedule": "${ScheduleMode}",
+                "bucket": "${CloudWatchReportsBucket}"
+              }
+
+  # Report Generator Lambda Function
+  ReportGeneratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-ReportGenerator
+      CodeUri: lambda/report_generator/
+      Handler: lambda_function.lambda_handler
+      MemorySize: 1024
+      Timeout: 180
+      Layers:
+        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:12
+        - arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV2:68
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub '${CloudWatchReportsBucket.Arn}/data/*'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+              Resource: !Sub '${CloudWatchReportsBucket.Arn}/reports/*'
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref NotificationsTopic
+
+Outputs:
+  TemplateVersion:
+    Description: Version of the SAM template
+    Value: 1.0.0-sam
+
+  S3BucketName:
+    Description: Name of the S3 bucket for storing metrics and reports
+    Value: !Ref CloudWatchReportsBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-S3BucketName
+
+  S3BucketArn:
+    Description: ARN of the S3 bucket for storing metrics and reports
+    Value: !GetAtt CloudWatchReportsBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-S3BucketArn
+
+  NotificationEmailOutput:
+    Description: Email address configured for notifications
+    Value: !Ref NotificationEmail
+
+  DataExporterFunctionArn:
+    Description: ARN of the Data Exporter Lambda function
+    Value: !GetAtt DataExporterFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-DataExporterFunctionArn
+
+  ReportGeneratorFunctionArn:
+    Description: ARN of the Report Generator Lambda function
+    Value: !GetAtt ReportGeneratorFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-ReportGeneratorFunctionArn
+
+  ScheduleModeOutput:
+    Description: Current schedule mode (demo or production)
+    Value: !Ref ScheduleMode
+
+  ScheduleExpressionOutput:
+    Description: Current schedule expression being used
+    Value: !If
+      - IsDemoMode
+      - rate(5 minutes) - Demo Mode
+      - cron(0 0 1 * ? *) - Monthly on 1st day
+
+  NotificationsTopicArn:
+    Description: ARN of the SNS topic for notifications
+    Value: !Ref NotificationsTopic
+    Export:
+      Name: !Sub ${AWS::StackName}-NotificationsTopicArn
