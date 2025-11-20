@@ -25,9 +25,9 @@ def get_sample_instances() -> List[str]:
     """
     # Hardcoded instance IDs for proof of concept
     sample_instances = [
-        'i-03b933276fbf10181',
-        'i-0586fae46f1e7e9ea',
-        'i-038d58c996d553eaa'
+        'i-03b936896fbf10181',
+        'i-0586fae46f1e2f0ea',
+        'i-024e58c193d553eaa'
     ]
     
     logger.info("Retrieved sample instances", extra={
