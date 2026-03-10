@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Cross-account IAM role for CloudWatch Reporting.
+  Deploy this template in each workload account to allow the central
+  reporting account to read CloudWatch metrics and EC2 instance metadata.
+
+Parameters:
+  ReportingAccountId:
+    Type: String
+    Description: AWS Account ID of the central reporting account
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: Must be a valid 12-digit AWS account ID
+
+  ExternalId:
+    Type: String
+    Description: External ID for additional cross-account security
+    Default: CloudWatchReporting2026
+    MinLength: 1
+
+Resources:
+  CloudWatchReportingReadRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CloudWatchReportingReadRole
+      Description: Allows the central reporting account to read CloudWatch metrics and EC2 metadata
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${ReportingAccountId}:root"
+            Action: "sts:AssumeRole"
+            Condition:
+              StringEquals:
+                "sts:ExternalId": !Ref ExternalId
+
+  CloudWatchReadAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudWatchReadAccess
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudwatch:GetMetricStatistics
+              - cloudwatch:ListMetrics
+              - cloudwatch:GetMetricData
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ec2:DescribeInstances
+              - ec2:DescribeRegions
+            Resource: "*"
+      Roles:
+        - !Ref CloudWatchReportingReadRole
+
+Outputs:
+  RoleArn:
+    Description: ARN of the cross-account read role
+    Value: !GetAtt CloudWatchReportingReadRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-RoleArn"
+
+  RoleName:
+    Description: Name of the cross-account read role
+    Value: !Ref CloudWatchReportingReadRole

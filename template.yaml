@@ -30,6 +30,23 @@ Parameters:
       - production
     ConstraintDescription: Must be either demo (every 5 minutes) or production (monthly on 1st day)
 
+  CrossAccountRoleName:
+    Type: String
+    Description: Name of the IAM role deployed in workload accounts for cross-account access
+    Default: CloudWatchReportingReadRole
+
+  CrossAccountExternalId:
+    Type: String
+    Description: External ID used when assuming cross-account roles
+    Default: CloudWatchReporting2026
+    NoEcho: true
+
+  OrganizationId:
+    Type: String
+    Description: AWS Organization ID to restrict cross-account role assumption (e.g. o-abc123def4)
+    AllowedPattern: ^o-[a-z0-9]{10,32}$
+    ConstraintDescription: Must be a valid AWS Organization ID starting with o-
+
 Conditions:
   IsDemoMode: !Equals
     - !Ref ScheduleMode
@@ -82,6 +99,18 @@ Resources:
       DisplayName: CloudWatch S3 Reporting Notifications
       KmsMasterKeyId: alias/aws/sns
 
+  # SSM Parameter for cross-account target accounts registry
+  # Update this parameter to add/remove workload accounts without redeploying
+  # Format: JSON array of objects with account_id, regions, and optional alias
+  # Example: [{"account_id":"111122223333","regions":["us-east-1"],"alias":"prod-workloads"}]
+  TargetAccountsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${AWS::StackName}/target-accounts
+      Type: String
+      Description: JSON list of workload accounts to pull CloudWatch metrics from
+      Value: '[]'
+
   # SNS Email Subscription
   NotificationsEmailSubscription:
     Type: AWS::SNS::Subscription
@@ -102,12 +131,32 @@ Resources:
       Environment:
         Variables:
           S3_BUCKET_NAME: !Ref CloudWatchReportsBucket
+          TARGET_ACCOUNTS_PARAM: !Sub /${AWS::StackName}/target-accounts
+          CROSS_ACCOUNT_ROLE_NAME: !Ref CrossAccountRoleName
+          CROSS_ACCOUNT_EXTERNAL_ID: !Ref CrossAccountExternalId
+          ORGANIZATION_ID: !Ref OrganizationId
       Layers:
         - arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV2:68
       Policies:
-        - CloudWatchReadOnlyAccess
         - Version: '2012-10-17'
           Statement:
+            - Effect: Allow
+              Action:
+                - sts:AssumeRole
+              Resource: !Sub 'arn:aws:iam::*:role/${CrossAccountRoleName}'
+              Condition:
+                StringEquals:
+                  'aws:ResourceOrgID': !Ref OrganizationId
+            - Effect: Allow
+              Action:
+                - cloudwatch:GetMetricStatistics
+                - cloudwatch:GetMetricData
+                - cloudwatch:ListMetrics
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/target-accounts'
             - Effect: Allow
               Action:
                 - ec2:DescribeInstances
@@ -119,7 +168,6 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:PutObject
-                - s3:PutObjectAcl
               Resource: !Sub '${CloudWatchReportsBucket.Arn}/data/*'
             - Effect: Allow
               Action:
@@ -173,7 +221,6 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:PutObject
-                - s3:PutObjectAcl
               Resource: !Sub '${CloudWatchReportsBucket.Arn}/reports/*'
             - Effect: Allow
               Action:
@@ -229,3 +276,11 @@ Outputs:
     Value: !Ref NotificationsTopic
     Export:
       Name: !Sub ${AWS::StackName}-NotificationsTopicArn
+
+  TargetAccountsParameterName:
+    Description: SSM Parameter name for the target accounts registry
+    Value: !Ref TargetAccountsParameter
+
+  CrossAccountRoleNameOutput:
+    Description: IAM role name expected in workload accounts
+    Value: !Ref CrossAccountRoleName

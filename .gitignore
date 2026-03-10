@@ -6,3 +6,12 @@
 
 # SAM configuration (environment-specific)
 samconfig.toml
+
+# Generated test outputs
+response.json
+report.html
+report-debug.html
+
+# Temporary SSM helper files
+events/ssm-put.json
+events/ssm-value.json

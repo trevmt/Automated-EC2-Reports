@@ -1,6 +1,6 @@
 {
   "source": "manual-test",
   "schedule": "demo",
-  "bucket_name": "cloudwatch-reports-730335285545",
+  "bucket_name": "your-cloudwatch-reports-bucket",
   "test": true
 }

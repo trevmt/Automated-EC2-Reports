@@ -1,0 +1,54 @@
+{
+  "month": "2026-03",
+  "export_timestamp": "2026-03-09T12:00:00",
+  "instances": [
+    {
+      "instance_id": "i-0aaa111122223333",
+      "account_id": "111122223333",
+      "account_alias": "prod-workloads",
+      "region": "us-east-1",
+      "cpu_data": [
+        { "timestamp": "2026-03-01", "average": 45.23, "maximum": 78.10, "minimum": 12.50 },
+        { "timestamp": "2026-03-02", "average": 52.10, "maximum": 85.30, "minimum": 18.20 },
+        { "timestamp": "2026-03-03", "average": 38.75, "maximum": 62.40, "minimum": 10.10 }
+      ],
+      "month": "2026-03"
+    },
+    {
+      "instance_id": "i-0aaa444455556666",
+      "account_id": "111122223333",
+      "account_alias": "prod-workloads",
+      "region": "us-east-1",
+      "cpu_data": [
+        { "timestamp": "2026-03-01", "average": 12.50, "maximum": 25.00, "minimum": 5.00 },
+        { "timestamp": "2026-03-02", "average": 15.30, "maximum": 30.10, "minimum": 6.20 },
+        { "timestamp": "2026-03-03", "average": 10.80, "maximum": 22.50, "minimum": 4.10 }
+      ],
+      "month": "2026-03"
+    },
+    {
+      "instance_id": "i-0bbb777788889999",
+      "account_id": "444455556666",
+      "account_alias": "staging",
+      "region": "us-east-1",
+      "cpu_data": [
+        { "timestamp": "2026-03-01", "average": 82.10, "maximum": 96.50, "minimum": 55.30 },
+        { "timestamp": "2026-03-02", "average": 88.40, "maximum": 98.20, "minimum": 60.10 },
+        { "timestamp": "2026-03-03", "average": 75.60, "maximum": 91.00, "minimum": 48.20 }
+      ],
+      "month": "2026-03"
+    },
+    {
+      "instance_id": "i-0ccc000011112222",
+      "account_id": "444455556666",
+      "account_alias": "staging",
+      "region": "us-west-2",
+      "cpu_data": [
+        { "timestamp": "2026-03-01", "average": 33.20, "maximum": 55.00, "minimum": 15.00 },
+        { "timestamp": "2026-03-02", "average": 40.10, "maximum": 60.30, "minimum": 20.50 },
+        { "timestamp": "2026-03-03", "average": 35.80, "maximum": 52.10, "minimum": 18.30 }
+      ],
+      "month": "2026-03"
+    }
+  ]
+}
